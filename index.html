@@ -23,7 +23,7 @@ firebase.initializeApp({
 });
 const auth=firebase.auth(),db=firebase.firestore(),stg=firebase.storage(),rtdb=firebase.database();
 // ═══ CHANGE THIS TO YOUR EMAIL FOR ADMIN ACCESS ═══
-const ADMIN_EMAILS=["jasb31@outlook.com"];
+const ADMIN_EMAILS=["jasb31@outlook.com","docmoates@gmail.com"];
 </script>
 <style>
 :root{--navy:#0A1628;--navy-mid:#132240;--navy-light:#1B3058;--navy-hover:#223966;--gold:#D4A843;--gold-light:#E8C970;--gold-dim:rgba(212,168,67,0.15);--gold-glow:rgba(212,168,67,0.3);--white:#F0EDE6;--gray:#8A94A6;--gray-light:#B0B8C8;--gray-dark:#5A6478;--green:#3ECF8E;--green-dim:rgba(62,207,142,0.12);--red:#F06449;--red-dim:rgba(240,100,73,0.12);--blue:#5B8DEF;--blue-dim:rgba(91,141,239,0.12);--purple:#9D78FF;--purple-dim:rgba(157,120,255,0.15);--card:rgba(19,34,64,0.6);--border:rgba(212,168,67,0.12);--input:rgba(10,22,40,0.7);--radius:12px;--radius-sm:8px;--radius-lg:18px}
@@ -67,7 +67,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 <div class="screen active" id="welcome"><div class="w-logo">H</div><div class="w-title">Welcome to <span>Herzing University's</span> Study Hub</div><div class="w-sub">A shared space to organize study sessions, share materials, and prep for exams together.</div><div class="w-badge">Built by Students, for Students</div><div class="w-actions"><button class="btn btn-primary" onclick="goAuth('signup')">Get Started</button><button class="btn btn-secondary" onclick="goAuth('login')">I Have an Account</button></div></div>
 <div class="screen" id="authScreen"><div class="auth-card" id="authCard"></div></div>
 <div class="screen" id="mainApp">
-  <header class="app-header"><div class="logo-area"><div class="logo-mark">H</div><div style="display:flex;flex-direction:column"><span class="logo-text">Study Hub</span><span class="logo-sub">Herzing University</span></div></div><div class="header-right"><div class="online-badge"><div class="online-dot"></div><span id="onlineCount">0</span> online</div><span class="user-badge" id="userBadge" onclick="openProfileModal()"></span><span class="admin-badge" id="adminBadge" style="display:none">Admin</span><button class="btn btn-ghost btn-sm" onclick="auth.signOut()">Log out</button></div></header>
+  <header class="app-header"><div class="logo-area"><div class="logo-mark">H</div><div style="display:flex;flex-direction:column"><span class="logo-text">Study Hub</span><span class="logo-sub">Herzing University</span></div></div><div class="header-right"><div class="online-badge" onclick="showOnlineUsers()" style="cursor:pointer" title="Click to see who's online"><div class="online-dot"></div><span id="onlineCount">0</span> online</div><span class="user-badge" id="userBadge" onclick="openProfileModal()"></span><span class="admin-badge" id="adminBadge" style="display:none">Admin</span><button class="btn btn-ghost btn-sm" onclick="auth.signOut()">Log out</button></div></header>
   <div class="verify-banner" id="verifyBanner">Please verify your email. Check your inbox for a verification link. <a style="color:var(--gold);cursor:pointer;font-weight:700" onclick="auth.currentUser.sendEmailVerification().then(()=>showToast('Verification email sent!'))">Resend</a></div>
   <nav class="app-nav" id="appNav"></nav>
   <div class="app-body" id="appBody"></div>
@@ -81,7 +81,7 @@ const RESOURCES=['Study Fetch','Anki Decks','ATI / HESI Review','Textbook Chapte
 const FAQS=[{q:'How does the Study Hub work?',a:'Create or join study sessions organized by program and class. Browse materials. Start or join discussions.'},{q:'Can I see sessions from other programs?',a:'Yes. By default you see all sessions. Use the program/class filters to narrow down.'},{q:'Will I get automatic reminders?',a:'Not at this time. Session leaders can see your contact preference and may reach out manually. Add the meeting link to your own calendar.'},{q:'How are study materials organized?',a:'Materials are organized in folders by program and then by class. Navigate like a file browser.'},{q:'How does discussion work?',a:'Post topics tagged by program and class. Others can reply and upvote. Think Reddit, but for studying.'},{q:'Who built this?',a:'Built by Herzing nursing students. Not affiliated with or endorsed by Herzing University administration.'}];
 
 // ═══ STATE ═══
-let CU=null,UP=null,isAdmin=false,sessions=[],materials=[],threads=[],nav='sessions',fProg='all',fClass='all',sessView='grid',matPath=[],discView='feed',discOpenId=null,discSearch='',discSort='hot',toastT=null,unsubs=[];
+let CU=null,UP=null,isAdmin=false,sessions=[],materials=[],threads=[],onlineUsers=[],allUsers=[],blacklist=[],nav='sessions',fProg='all',fClass='all',sessView='grid',matPath=[],discView='feed',discOpenId=null,discSearch='',discSort='hot',toastT=null,unsubs=[];
 
 // ═══ HELPERS ═══
 function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
@@ -113,11 +113,12 @@ async function doForgot(){const email=(document.getElementById('a-email')?.value
 
 // ═══ AUTH STATE + REAL-TIME LISTENERS ═══
 auth.onAuthStateChanged(async user=>{
-  // Cleanup old listeners
   unsubs.forEach(u=>u());unsubs=[];
   if(user){
+    // Check blacklist
+    try{const blDoc=await db.collection('blacklist').doc(user.uid).get();
+      if(blDoc.exists){await auth.signOut();showToast('Your account has been suspended.','error');return}}catch(e){}
     CU=user;isAdmin=ADMIN_EMAILS.includes(user.email?.toLowerCase());
-    // Load user profile
     try{const doc=await db.collection('users').doc(user.uid).get();UP=doc.exists?doc.data():{name:user.displayName||'',program:'demsn'}}catch(e){UP={name:user.displayName||'',program:'demsn'}}
     showScreen('mainApp');
     document.getElementById('userBadge').innerHTML=`Hi, <span>${esc((user.displayName||user.email).split(' ')[0])}</span>`;
@@ -134,11 +135,28 @@ auth.onAuthStateChanged(async user=>{
   }
 });
 
+function showOnlineUsers(){
+  closeModal();const o=document.createElement('div');o.className='modal-overlay';o.onclick=e=>{if(e.target===o)closeModal()};
+  o.innerHTML=`<div class="modal modal-sm"><h2>Who's Online</h2><p class="modal-sub">${onlineUsers.length} user${onlineUsers.length!==1?'s':''} currently active</p>
+    <div style="display:flex;flex-direction:column;gap:8px">${onlineUsers.length?onlineUsers.map(u=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(0,0,0,.15);border-radius:var(--radius-sm)">
+      <div style="width:32px;height:32px;border-radius:50%;background:${col(u.name)};display:grid;place-items:center;font-size:12px;font-weight:700">${ini(u.name)}</div>
+      <div><div style="font-weight:600;font-size:14px">${esc(u.name)}</div><div style="font-size:11px;color:var(--gray)">${esc(u.email)}</div></div>
+      <div style="margin-left:auto;width:8px;height:8px;border-radius:50%;background:var(--green)"></div>
+    </div>`).join(''):'<p style="color:var(--gray);text-align:center;padding:20px">No one else is online right now.</p>'}</div>
+    <div class="form-actions"><button class="btn btn-secondary" onclick="closeModal()">Close</button></div>
+  </div>`;
+  document.body.appendChild(o);
+}
+
 function setupPresence(user){
   const ref=rtdb.ref('presence/'+user.uid);
-  ref.set({name:user.displayName||user.email,online:true,ts:firebase.database.ServerValue.TIMESTAMP});
-  ref.onDisconnect().set({name:user.displayName||user.email,online:false,ts:firebase.database.ServerValue.TIMESTAMP});
-  rtdb.ref('presence').on('value',snap=>{let c=0;snap.forEach(ch=>{if(ch.val().online)c++});const el=document.getElementById('onlineCount');if(el)el.textContent=c});
+  ref.set({name:user.displayName||user.email,email:user.email,online:true,ts:firebase.database.ServerValue.TIMESTAMP});
+  ref.onDisconnect().set({name:user.displayName||user.email,email:user.email,online:false,ts:firebase.database.ServerValue.TIMESTAMP});
+  rtdb.ref('presence').on('value',snap=>{
+    let c=0;onlineUsers=[];
+    snap.forEach(ch=>{const v=ch.val();if(v.online){c++;onlineUsers.push({uid:ch.key,name:v.name,email:v.email})}});
+    const el=document.getElementById('onlineCount');if(el)el.textContent=c;
+  });
 }
 
 function setupListeners(){
@@ -157,6 +175,16 @@ function setupListeners(){
     materials=snap.docs.map(d=>({id:d.id,...d.data()}));
     if(nav==='materials')renderPage();
   },e=>console.error('Materials listener:',e)));
+  // Users - real-time (admin)
+  unsubs.push(db.collection('users').orderBy('createdAt','desc').onSnapshot(snap=>{
+    allUsers=snap.docs.map(d=>({uid:d.id,...d.data()}));
+    if(nav==='admin')renderPage();
+  },e=>console.error('Users listener:',e)));
+  // Blacklist - real-time
+  unsubs.push(db.collection('blacklist').onSnapshot(snap=>{
+    blacklist=snap.docs.map(d=>({uid:d.id,...d.data()}));
+    if(nav==='admin')renderPage();
+  },e=>console.error('Blacklist listener:',e)));
 }
 
 // ═══ NAV + RENDER ═══
@@ -236,10 +264,43 @@ function rFAQ(el){el.innerHTML=`<div class="section-head"><h2>Frequently Asked Q
 
 // ═══ ADMIN ═══
 function rAdmin(el){if(!isAdmin){el.innerHTML='<p>Access denied.</p>';return}
+  const blUids=blacklist.map(b=>b.uid);
+  const activeUsers=allUsers.filter(u=>!blUids.includes(u.uid));
+  const blockedUsers=allUsers.filter(u=>blUids.includes(u.uid));
+  const isOnline=uid=>onlineUsers.some(u=>u.uid===uid);
   el.innerHTML=`<div class="section-head"><h2>⚙️ Admin Panel</h2></div>
+    <div class="admin-section"><h3>👥 Active Users (${activeUsers.length})</h3><table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Program</th><th>Joined</th><th>Status</th><th></th></tr></thead><tbody>${activeUsers.map(u=>`<tr>
+      <td style="font-weight:600">${esc(u.name)}</td>
+      <td style="color:var(--gray)">${esc(u.email)}</td>
+      <td>${gpl(u.program||'')}</td>
+      <td style="color:var(--gray)">${u.createdAt?new Date(u.createdAt).toLocaleDateString():''}</td>
+      <td>${isOnline(u.uid)?'<span style="color:var(--green);font-weight:600;font-size:12px">● Online</span>':'<span style="color:var(--gray-dark);font-size:12px">Offline</span>'}</td>
+      <td>${ADMIN_EMAILS.includes(u.email?.toLowerCase())?'<span style="color:var(--gold);font-size:11px;font-weight:700">ADMIN</span>':`<button class="btn btn-danger btn-xs" onclick="confirmDo('Blacklist ${esc(u.name)}? They will be logged out and unable to sign back in.',()=>blacklistUser('${u.uid}','${esc(u.name)}','${esc(u.email)}'))">Blacklist</button>`}</td>
+    </tr>`).join('')}</tbody></table></div>
+    ${blockedUsers.length?`<div class="admin-section"><h3 style="color:var(--red)">🚫 Blacklisted Users (${blockedUsers.length})</h3><table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Blacklisted</th><th>Reason</th><th></th></tr></thead><tbody>${blockedUsers.map(u=>{const bl=blacklist.find(b=>b.uid===u.uid);return`<tr>
+      <td style="font-weight:600">${esc(u.name)}</td>
+      <td style="color:var(--gray)">${esc(u.email)}</td>
+      <td style="color:var(--gray)">${bl?.blockedAt?new Date(bl.blockedAt).toLocaleDateString():''}</td>
+      <td style="color:var(--gray)">${esc(bl?.reason||'')}</td>
+      <td><button class="btn btn-secondary btn-xs" onclick="confirmDo('Restore access for ${esc(u.name)}?',()=>unblacklistUser('${u.uid}'))">Restore</button></td>
+    </tr>`}).join('')}</tbody></table></div>`:''}
+    <div class="admin-section"><h3>🟢 Currently Online (${onlineUsers.length})</h3>${onlineUsers.length?`<div style="display:flex;flex-wrap:wrap;gap:10px">${onlineUsers.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(0,0,0,.15);border-radius:var(--radius-sm)"><div style="width:28px;height:28px;border-radius:50%;background:${col(u.name)};display:grid;place-items:center;font-size:11px;font-weight:700">${ini(u.name)}</div><div><div style="font-size:13px;font-weight:600">${esc(u.name)}</div><div style="font-size:10px;color:var(--gray)">${esc(u.email)}</div></div></div>`).join('')}</div>`:'<p style="color:var(--gray);font-size:13px">No one online right now.</p>'}</div>
     <div class="admin-section"><h3>📅 Sessions (${sessions.length})</h3><table class="admin-table"><thead><tr><th>Topic</th><th>Leader</th><th>Program</th><th>Date</th><th></th></tr></thead><tbody>${sessions.map(s=>`<tr><td>${esc(s.topic)}</td><td>${esc(s.leader)}</td><td>${gpl(s.program)}</td><td>${fD(s.date)}</td><td><button class="btn btn-danger btn-xs" onclick="delSess('${s.id}')">Delete</button></td></tr>`).join('')}</tbody></table></div>
     <div class="admin-section"><h3>💬 Threads (${threads.length})</h3><table class="admin-table"><thead><tr><th>Title</th><th>Author</th><th>Votes</th><th>Replies</th><th></th></tr></thead><tbody>${threads.map(t=>`<tr><td>${esc(t.title)}</td><td>${esc(t.author)}</td><td>${t.votes||0}</td><td>${(t.replies||[]).length}</td><td><button class="btn btn-danger btn-xs" onclick="delThread('${t.id}')">Delete</button></td></tr>`).join('')}</tbody></table></div>
     <div class="admin-section"><h3>📁 Materials (${materials.length})</h3><table class="admin-table"><thead><tr><th>File</th><th>By</th><th>Program</th><th></th></tr></thead><tbody>${materials.map(m=>`<tr><td>${esc(m.fileName)}</td><td>${esc(m.uploadedBy)}</td><td>${gpl(m.program)}</td><td><button class="btn btn-danger btn-xs" onclick="delMat('${m.id}','${esc(m.storagePath||'')}')">Delete</button></td></tr>`).join('')}</tbody></table></div>`}
+
+async function blacklistUser(uid,name,email){
+  try{
+    await db.collection('blacklist').doc(uid).set({name,email,blockedAt:new Date().toISOString(),blockedBy:CU.email,reason:'Blocked by admin'});
+    showToast(`${name} has been blacklisted.`);
+  }catch(e){showToast('Failed to blacklist.','error');console.error(e)}
+}
+async function unblacklistUser(uid){
+  try{
+    await db.collection('blacklist').doc(uid).delete();
+    showToast('User access restored.');
+  }catch(e){showToast('Failed.','error');console.error(e)}
+}
 
 // ═══ FIREBASE WRITE OPS ═══
 function generateICS(s){
