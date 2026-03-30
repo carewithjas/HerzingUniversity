@@ -23,7 +23,7 @@ firebase.initializeApp({
 });
 const auth=firebase.auth(),db=firebase.firestore(),stg=firebase.storage(),rtdb=firebase.database();
 // ═══ CHANGE THIS TO YOUR EMAIL FOR ADMIN ACCESS ═══
-const ADMIN_EMAILS=["jasb31@outlook.com"];
+const ADMIN_EMAILS=["test@herzing.edu"];
 </script>
 <style>
 :root{--navy:#0A1628;--navy-mid:#132240;--navy-light:#1B3058;--navy-hover:#223966;--gold:#D4A843;--gold-light:#E8C970;--gold-dim:rgba(212,168,67,0.15);--gold-glow:rgba(212,168,67,0.3);--white:#F0EDE6;--gray:#8A94A6;--gray-light:#B0B8C8;--gray-dark:#5A6478;--green:#3ECF8E;--green-dim:rgba(62,207,142,0.12);--red:#F06449;--red-dim:rgba(240,100,73,0.12);--blue:#5B8DEF;--blue-dim:rgba(91,141,239,0.12);--purple:#9D78FF;--purple-dim:rgba(157,120,255,0.15);--card:rgba(19,34,64,0.6);--border:rgba(212,168,67,0.12);--input:rgba(10,22,40,0.7);--radius:12px;--radius-sm:8px;--radius-lg:18px}
@@ -103,7 +103,7 @@ function updCls(id,prog){const sel=document.getElementById(id);if(!sel)return;se
 function goAuth(mode){
   showScreen('authScreen');const card=document.getElementById('authCard');
   if(mode==='login')card.innerHTML=`<h2>Welcome Back</h2><p class="sub">Sign in to your Study Hub account.</p><div class="fg"><label>Email</label><input id="a-email" placeholder="you@herzing.edu"></div><div class="fg"><label>Password</label><input type="password" id="a-pass" placeholder="Password"></div><span class="forgot-link" onclick="goAuth('forgot')">Forgot password?</span><div class="auth-err" id="authErr"></div><button class="btn btn-primary btn-full" onclick="doLogin()">Sign In</button><div class="auth-toggle">Don't have an account? <a onclick="goAuth('signup')">Sign up</a></div>`;
-  else if(mode==='signup')card.innerHTML=`<h2>Create Account</h2><p class="sub">Join the community.</p><div class="fg"><label>Full Name</label><input id="a-name" placeholder="e.g. Jas Thompson"></div><div class="fg"><label>Email</label><input id="a-email" placeholder="you@herzing.edu"></div><div class="frow"><div class="fg"><label>Password</label><input type="password" id="a-pass" placeholder="Min 6 chars"></div><div class="fg"><label>Confirm</label><input type="password" id="a-pass2" placeholder="Confirm"></div></div><div class="fg"><label>Program</label><select id="a-prog">${PROGRAMS.map(p=>`<option value="${p.v}">${p.l}</option>`).join('')}</select></div><div class="auth-err" id="authErr"></div><button class="btn btn-primary btn-full" onclick="doSignup()">Create Account</button><div class="auth-toggle">Have an account? <a onclick="goAuth('login')">Sign in</a></div>`;
+  else if(mode==='signup')card.innerHTML=`<h2>Create Account</h2><p class="sub">Join the community.</p><div class="fg"><label>Full Name</label><input id="a-name" placeholder="e.g. First Last"></div><div class="fg"><label>Email</label><input id="a-email" placeholder="you@herzing.edu"></div><div class="frow"><div class="fg"><label>Password</label><input type="password" id="a-pass" placeholder="Min 6 chars"></div><div class="fg"><label>Confirm</label><input type="password" id="a-pass2" placeholder="Confirm"></div></div><div class="fg"><label>Program</label><select id="a-prog">${PROGRAMS.map(p=>`<option value="${p.v}">${p.l}</option>`).join('')}</select></div><div class="auth-err" id="authErr"></div><button class="btn btn-primary btn-full" onclick="doSignup()">Create Account</button><div class="auth-toggle">Have an account? <a onclick="goAuth('login')">Sign in</a></div>`;
   else card.innerHTML=`<h2>Reset Password</h2><p class="sub">We'll send a reset link.</p><div class="fg"><label>Email</label><input id="a-email" placeholder="you@herzing.edu"></div><div class="auth-err" id="authErr"></div><button class="btn btn-primary btn-full" onclick="doForgot()">Send Reset Link</button><div class="auth-toggle"><a onclick="goAuth('login')">Back to sign in</a></div>`;
 }
 function authErr(m){const el=document.getElementById('authErr');if(el){el.textContent=m;el.classList.add('show')}}
@@ -182,11 +182,11 @@ function sCard(s,idx){
   const cl=gci(s.classType),uid=CU?.uid,isL=s.leaderUid===uid,isA=(s.attendees||[]).some(a=>a.uid===uid);
   const spots=s.maxAttendees>0?` · ${Math.max(0,s.maxAttendees-(s.attendees||[]).length)} spots left`:'';
   let mL='Meeting';const ml=(s.meetLink||'').toLowerCase();if(ml.includes('zoom'))mL='Zoom';else if(ml.includes('meet.google'))mL='Google Meet';else if(ml.includes('teams'))mL='Teams';
-  return`<div class="session-card card-anim" style="animation-delay:${idx*.06}s"><div class="card-header"><span class="class-badge ${cl.b}">${cl.l}</span><span class="date-badge">${fD(s.date)}</span></div><div class="program-tag">${gpl(s.program)}</div><h3>${esc(s.topic)}</h3><div class="leader"><em>Led by</em> ${esc(s.leader)}${isL?' (you)':''}</div><div class="meta-row"><span class="meta-tag">🕐 ${fT(s.time)}${s.duration?' · '+s.duration+' min':''}</span>${s.location?`<span class="meta-tag">📍 ${esc(s.location)}</span>`:''}</div>${s.resources?.length?`<div class="meta-row">${s.resources.map(r=>`<span class="meta-tag">📄 ${esc(r)}</span>`).join('')}</div>`:''}${s.description?`<div class="desc">${esc(s.description).substring(0,160)}${s.description.length>160?'...':''}</div>`:''}<div class="card-footer"><div class="attendees"><div class="attendee-dots"><div class="attendee-dot" style="background:${col(s.leader)};z-index:10">${ini(s.leader)}</div>${(s.attendees||[]).slice(0,4).map((a,i)=>`<div class="attendee-dot" style="background:${col(a.name)};z-index:${9-i}">${ini(a.name)}</div>`).join('')}${(s.attendees||[]).length>4?`<div class="attendee-dot" style="background:var(--navy-light)">+${(s.attendees||[]).length-4}</div>`:''}</div><span>${(s.attendees||[]).length+1} studying${spots}</span></div><div style="display:flex;gap:6px">${isL||isA?`<button class="btn btn-attend joined">✓ Joined</button>`:`<button class="btn btn-attend" onclick="joinSess('${s.id}')">Join</button>`}</div></div>${s.meetLink?`<div class="cal-link"><a href="${esc(s.meetLink)}" target="_blank">🔗 ${mL}</a></div>`:''}</div>`;
+  return`<div class="session-card card-anim" style="animation-delay:${idx*.06}s"><div class="card-header"><span class="class-badge ${cl.b}">${cl.l}</span><span class="date-badge">${fD(s.date)}</span></div><div class="program-tag">${gpl(s.program)}</div><h3>${esc(s.topic)}</h3><div class="leader"><em>Led by</em> ${esc(s.leader)}${isL?' (you)':''}</div><div class="meta-row"><span class="meta-tag">🕐 ${fT(s.time)}${s.duration?' · '+s.duration+' min':''}</span>${s.location?`<span class="meta-tag">📍 ${esc(s.location)}</span>`:''}</div>${s.resources?.length?`<div class="meta-row">${s.resources.map(r=>`<span class="meta-tag">📄 ${esc(r)}</span>`).join('')}</div>`:''}${s.description?`<div class="desc">${esc(s.description).substring(0,160)}${s.description.length>160?'...':''}</div>`:''}<div class="card-footer"><div class="attendees"><div class="attendee-dots"><div class="attendee-dot" style="background:${col(s.leader)};z-index:10">${ini(s.leader)}</div>${(s.attendees||[]).slice(0,4).map((a,i)=>`<div class="attendee-dot" style="background:${col(a.name)};z-index:${9-i}">${ini(a.name)}</div>`).join('')}${(s.attendees||[]).length>4?`<div class="attendee-dot" style="background:var(--navy-light)">+${(s.attendees||[]).length-4}</div>`:''}</div><span>${(s.attendees||[]).length+1} studying${spots}</span></div><div style="display:flex;gap:6px">${isL||isA?`<button class="btn btn-attend joined">✓ Joined</button>`:`<button class="btn btn-attend" onclick="joinSess('${s.id}')">Join</button>`}</div></div>${s.meetLink?`<div class="cal-link"><a href="${esc(s.meetLink)}" target="_blank">🔗 ${mL}</a><span style="margin:0 8px;color:var(--border)">|</span><a href="#" onclick="event.preventDefault();downloadICS(sessions.find(x=>x.id==='${s.id}'))">📅 Add to Calendar</a></div>`:`<div class="cal-link"><a href="#" onclick="event.preventDefault();downloadICS(sessions.find(x=>x.id==='${s.id}'))">📅 Add to Calendar</a></div>`}</div>`;
 }
 function sRow(s){
   const cl=gci(s.classType),uid=CU?.uid,isL=s.leaderUid===uid,isA=(s.attendees||[]).some(a=>a.uid===uid);
-  return`<div class="session-list-row card-anim"><div class="slr-badge"><span class="class-badge ${cl.b}">${cl.l.split(' ')[0]}</span></div><div class="slr-main"><div class="slr-topic">${esc(s.topic)}</div><div class="slr-meta"><span>${gpl(s.program)}</span><span>${fD(s.date)} at ${fT(s.time)}</span><span>${esc(s.leader)}</span></div></div><div class="slr-right"><span class="slr-count">${(s.attendees||[]).length+1} 👥</span>${isL||isA?`<span class="btn btn-attend joined btn-sm">✓</span>`:`<button class="btn btn-attend btn-sm" onclick="event.stopPropagation();joinSess('${s.id}')">Join</button>`}${s.meetLink?`<a href="${esc(s.meetLink)}" target="_blank" class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">🔗</a>`:''}</div></div>`;
+  return`<div class="session-list-row card-anim"><div class="slr-badge"><span class="class-badge ${cl.b}">${cl.l.split(' ')[0]}</span></div><div class="slr-main"><div class="slr-topic">${esc(s.topic)}</div><div class="slr-meta"><span>${gpl(s.program)}</span><span>${fD(s.date)} at ${fT(s.time)}</span><span>${esc(s.leader)}</span></div></div><div class="slr-right"><span class="slr-count">${(s.attendees||[]).length+1} 👥</span>${isL||isA?`<span class="btn btn-attend joined btn-sm">✓</span>`:`<button class="btn btn-attend btn-sm" onclick="event.stopPropagation();joinSess('${s.id}')">Join</button>`}${s.meetLink?`<a href="${esc(s.meetLink)}" target="_blank" class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">🔗</a>`:''}<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();downloadICS(sessions.find(x=>x.id==='${s.id}'))" title="Add to Calendar">📅</button></div></div>`;
 }
 
 // ═══ MY SESSIONS ═══
@@ -242,11 +242,31 @@ function rAdmin(el){if(!isAdmin){el.innerHTML='<p>Access denied.</p>';return}
     <div class="admin-section"><h3>📁 Materials (${materials.length})</h3><table class="admin-table"><thead><tr><th>File</th><th>By</th><th>Program</th><th></th></tr></thead><tbody>${materials.map(m=>`<tr><td>${esc(m.fileName)}</td><td>${esc(m.uploadedBy)}</td><td>${gpl(m.program)}</td><td><button class="btn btn-danger btn-xs" onclick="delMat('${m.id}','${esc(m.storagePath||'')}')">Delete</button></td></tr>`).join('')}</tbody></table></div>`}
 
 // ═══ FIREBASE WRITE OPS ═══
+function generateICS(s){
+  const pad=n=>String(n).padStart(2,'0');
+  const dt=new Date(s.date+'T'+s.time);
+  const dur=parseInt(s.duration)||90;
+  const end=new Date(dt.getTime()+dur*60000);
+  const fmt=d=>`${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+  const uid=Date.now()+'@herzingstudyhub';
+  const desc=`${s.description||'Study session'}\\n\\nLed by: ${s.leader}\\nMeeting: ${s.meetLink||'See session details'}`.replace(/\n/g,'\\n');
+  const ics=`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//HerzingStudyHub//EN\r\nBEGIN:VEVENT\r\nUID:${uid}\r\nDTSTAMP:${fmt(new Date())}\r\nDTSTART:${fmt(dt)}\r\nDTEND:${fmt(end)}\r\nSUMMARY:${s.topic}\r\nDESCRIPTION:${desc}\r\nLOCATION:${s.meetLink||s.location||''}\r\nBEGIN:VALARM\r\nTRIGGER:-PT30M\r\nACTION:DISPLAY\r\nDESCRIPTION:Study session in 30 minutes\r\nEND:VALARM\r\nBEGIN:VALARM\r\nTRIGGER:-PT10M\r\nACTION:DISPLAY\r\nDESCRIPTION:Study session in 10 minutes\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+  return ics;
+}
+function downloadICS(s){
+  const ics=generateICS(s);
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=s.topic.replace(/[^a-zA-Z0-9]/g,'_').substring(0,40)+'.ics';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 async function joinSess(id){
   const s=sessions.find(x=>x.id===id);if(!s||!CU)return;
   if(s.maxAttendees>0&&(s.attendees||[]).length>=s.maxAttendees){showToast('Session is full!','error');return}
   const att={name:CU.displayName||CU.email,uid:CU.uid,email:CU.email,joinedAt:new Date().toISOString()};
-  try{await db.collection('sessions').doc(id).update({attendees:firebase.firestore.FieldValue.arrayUnion(att)});showToast(`Joined "${s.topic}"!`)}catch(e){showToast('Failed to join.','error');console.error(e)}
+  try{await db.collection('sessions').doc(id).update({attendees:firebase.firestore.FieldValue.arrayUnion(att)});downloadICS(s);showToast(`Joined "${s.topic}"! Calendar event downloaded.`)}catch(e){showToast('Failed to join.','error');console.error(e)}
 }
 async function delSess(id){try{await db.collection('sessions').doc(id).delete();showToast('Session deleted.')}catch(e){showToast('Failed.','error')}}
 async function leaveSess(id){
